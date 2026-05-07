@@ -28,12 +28,12 @@
             <div class="card brief-card" id="briefCard">加载中…</div>
             <button class="nav-btn" id="prevBtn" title="上一张">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-                    <path d="M11 14L5 8l6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M11 14L5 8l6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
                 </svg>
             </button>
             <button class="nav-btn" id="nextBtn" title="下一张">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-                    <path d="M5 14l6-6-6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M5 14l6-6-6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
                 </svg>
             </button>
         </div>
@@ -143,10 +143,17 @@
             copyrightlinkUrl = img.copyrightlink;
         }
 
+        // 更新导航按钮的禁用状态
+        function updateNavButtons() {
+            const atFirst = currentIndex <= 0;
+            const atLast = currentIndex >= images.length - 1;
+            prevBtn.disabled = atFirst;
+            nextBtn.disabled = atLast;
+        }
+
         function showImage(index) {
             if (images.length === 0) return;
-            if (index < 0) index = images.length - 1;
-            if (index >= images.length) index = 0;
+            if (index < 0 || index >= images.length) return;
             currentIndex = index;
 
             const image = images[currentIndex];
@@ -154,6 +161,7 @@
 
             showBackground(wallpaperUrl);
             updateInfo(image);
+            updateNavButtons();
         }
 
         async function fetchImages() {
@@ -206,21 +214,21 @@
 
         prevBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            showImage(currentIndex - 1);
+            if (!prevBtn.disabled) showImage(currentIndex - 1);
         });
 
         nextBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            showImage(currentIndex + 1);
+            if (!nextBtn.disabled) showImage(currentIndex + 1);
         });
 
         // 键盘导航（搜索框聚焦时禁用）
         document.addEventListener('keydown', (e) => {
             const activeTag = document.activeElement && document.activeElement.tagName;
             if (activeTag === 'INPUT') return;
-            if (e.key === 'ArrowLeft' || e.key === 'Left') {
+            if ((e.key === 'ArrowLeft' || e.key === 'Left') && !prevBtn.disabled) {
                 showImage(currentIndex - 1);
-            } else if (e.key === 'ArrowRight' || e.key === 'Right') {
+            } else if ((e.key === 'ArrowRight' || e.key === 'Right') && !nextBtn.disabled) {
                 showImage(currentIndex + 1);
             }
         });
