@@ -36,39 +36,24 @@
             opacity: 1;
         }
 
+        /* 控制区域：右下角 */
         .controls {
             position: fixed;
             bottom: 20px;
             right: 20px;
             display: flex;
-            align-items: stretch;
-            gap: 8px;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0;
             z-index: 10;
         }
 
-        .nav-btn {
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: none;
-            padding: 0 12px;
-            border-radius: var(--card-r);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.3s;
-            font-size: 16px;
-            line-height: 1;
-        }
-
-        .nav-btn:hover {
-            background: rgba(0, 0, 0, 0.8);
-        }
-
-        /* 修复 1：卡片容器使用 min-height 防止高度坍缩 */
+        /* card-container 包含 brief-card 和按钮，正常流布局 */
         .card-container {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
             position: relative;
-            min-height: 44px;
         }
 
         .card {
@@ -79,10 +64,8 @@
             border-radius: var(--card-r);
             box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
             color: var(--text-main);
-            transition: opacity 0.25s ease, transform 0.25s ease;
         }
-        
-        /* 修复 1：brief-card 使用绝对定位重叠布局 */
+
         .brief-card {
             display: flex;
             text-align: right;
@@ -91,13 +74,9 @@
             max-width: 50vw;
             align-items: center;
             cursor: pointer;
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            opacity: 1;
-            transition: opacity 0.25s ease;
         }
 
+        /* detail-card：绝对定位浮在 card-container 上方 */
         .detail-card {
             display: flex;
             flex-direction: column;
@@ -105,8 +84,9 @@
             max-width: 90vw;
             cursor: pointer;
             position: absolute;
-            bottom: 0;
+            bottom: 100%;
             right: 0;
+            margin-bottom: 8px;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.25s ease;
@@ -130,15 +110,29 @@
             margin: 8px 0;
         }
 
-        /* 修复 1：使用 opacity 切换，避免 display:none 导致的高度坍缩 */
-        .card-container:hover .brief-card {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .card-container:hover .detail-card {
+        /* 鼠标悬停在 controls 区域时，显示 detail-card */
+        .controls:hover .detail-card {
             opacity: 1;
             pointer-events: auto;
+        }
+
+        .nav-btn {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 0 12px;
+            border-radius: var(--card-r);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
         }
 
     </style>
@@ -149,23 +143,23 @@
     <div id="bgB" class="bg"></div>
 
     <div class="controls" id="controlsRegion">
-        <button class="nav-btn" id="prevBtn" title="上一张">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-                <path d="M11 14L5 8l6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
-            </svg>
-        </button>
-        <button class="nav-btn" id="nextBtn" title="下一张">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-                <path d="M5 14l6-6-6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
-            </svg>
-        </button>
         <div class="card-container">
             <div class="card brief-card" id="briefCard">加载中…</div>
-            <div class="card detail-card" id="detailCard">
-                <h3 id="imageTitle"></h3>
-                <div class="hr"></div>
-                <div class="meta" id="imageMeta"></div>
-            </div>
+            <button class="nav-btn" id="prevBtn" title="上一张">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+                    <path d="M11 14L5 8l6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <button class="nav-btn" id="nextBtn" title="下一张">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+                    <path d="M5 14l6-6-6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+        <div class="card detail-card" id="detailCard">
+            <h3 id="imageTitle"></h3>
+            <div class="hr"></div>
+            <div class="meta" id="imageMeta"></div>
         </div>
     </div>
 
@@ -190,15 +184,15 @@
         let currentIndex = 0;
         let copyrightlinkUrl = null;
         let front = bgA, back = bgB;
-        let isAnimating = false; // 修复 4：防抖标志
+        let isAnimating = false;
 
-        // 修复 3：获取今天日期字符串（用于缓存判断）
+        // 获取今天日期字符串（用于缓存判断）
         function getTodayStr() {
             const d = new Date();
             return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
         }
 
-        // 修复 3：从缓存读取图片数据
+        // 从缓存读取图片数据
         function getCachedImages() {
             try {
                 const date = localStorage.getItem(CACHE_DATE_KEY);
@@ -210,7 +204,7 @@
             return null;
         }
 
-        // 修复 3：保存图片数据到缓存
+        // 保存图片数据到缓存
         function setCachedImages(data) {
             try {
                 localStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -220,7 +214,7 @@
 
         function showBackground(url) {
             if (!url) return;
-            if (isAnimating) return; // 修复 4：动画进行中不重复触发
+            if (isAnimating) return;
             isAnimating = true;
 
             const img = new Image();
@@ -228,7 +222,6 @@
                 back.style.backgroundImage = `url("${url}")`;
                 back.classList.add('show');
                 front.classList.remove('show');
-                // 修复 4：监听 transitionend 事件来重置标志并交换 front/back
                 const onEnd = () => {
                     back.removeEventListener('transitionend', onEnd);
                     let tmp = front;
@@ -284,7 +277,7 @@
 
         async function fetchImages() {
             try {
-                // 修复 3：优先使用缓存
+                // 优先使用缓存
                 const cached = getCachedImages();
                 if (cached) {
                     images = cached;
@@ -299,17 +292,15 @@
                 const data = await res.json();
                 images = data.images;
 
-                // 修复 3：写入缓存
                 if (images && images.length > 0) {
                     setCachedImages(images);
                     showImage(0);
                 }
             } catch (err) {
-                // 修复 7：更友好的错误提示
                 const msg = String(err);
                 briefCard.textContent = '加载失败';
                 titleEl.textContent = '错误';
-                if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('NetworkError')) {
+                if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
                     metaEl.textContent = '网络请求失败，CORS 代理可能不可用。请检查网络后刷新页面。';
                 } else {
                     metaEl.textContent = '错误详情：' + msg;
@@ -318,7 +309,6 @@
         }
 
         // 事件绑定
-        // 修复 6：brief-card 也添加点击跳转
         briefCard.addEventListener('click', (e) => {
             e.stopPropagation();
             if (copyrightlinkUrl) {
@@ -343,7 +333,7 @@
             showImage(currentIndex + 1);
         });
 
-        // 修复 5：键盘导航
+        // 键盘导航
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft' || e.key === 'Left') {
                 showImage(currentIndex - 1);
