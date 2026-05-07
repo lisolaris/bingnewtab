@@ -15,14 +15,14 @@ html, body {
     overflow: hidden;
 }
 
-/* 页面中央 Google 搜索框 */
+/* 页面 Google 搜索框：默认距顶部 220px，窗口不足时自动压缩 */
 .search-wrapper {
     position: fixed;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding-bottom: 0;
+    padding-top: clamp(0px, calc((100vh - 50px) / 2), 220px);
     z-index: 1;
     pointer-events: none;
 }
