@@ -65,11 +65,10 @@
             background: rgba(0, 0, 0, 0.8);
         }
 
+        /* 修复 1：卡片容器使用 min-height 防止高度坍缩 */
         .card-container {
             position: relative;
-            display: flex;
-            align-items: stretch;
-            gap: 8px;
+            min-height: 44px;
         }
 
         .card {
@@ -83,6 +82,7 @@
             transition: opacity 0.25s ease, transform 0.25s ease;
         }
         
+        /* 修复 1：brief-card 使用绝对定位重叠布局 */
         .brief-card {
             display: flex;
             text-align: right;
@@ -91,10 +91,15 @@
             max-width: 50vw;
             align-items: center;
             cursor: pointer;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            opacity: 1;
+            transition: opacity 0.25s ease;
         }
 
         .detail-card {
-            display: none;
+            display: flex;
             flex-direction: column;
             width: 360px;
             max-width: 90vw;
@@ -102,6 +107,9 @@
             position: absolute;
             bottom: 0;
             right: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
         }
 
         .detail-card h3 {
@@ -122,18 +130,15 @@
             margin: 8px 0;
         }
 
-        /* 仅当鼠标悬停在卡片容器上时显示详细卡片 */
+        /* 修复 1：使用 opacity 切换，避免 display:none 导致的高度坍缩 */
         .card-container:hover .brief-card {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
         }
         
         .card-container:hover .detail-card {
-            display: flex;
-        }
-
-        /* 鼠标悬停在按钮上时，只改变背景色 */
-        .nav-btn:hover {
-            background: rgba(0, 0, 0, 0.8);
+            opacity: 1;
+            pointer-events: auto;
         }
 
     </style>
@@ -167,6 +172,9 @@
     <script>
         // 代理避免CORS失败
         const API = 'https://mutsumi.sorali.org/api/cors/https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=zh-CN';
+        const CACHE_KEY = 'bing_daily_wallpaper';
+        const CACHE_DATE_KEY = 'bing_wallpaper_date';
+
         const bgA = document.getElementById('bgA');
         const bgB = document.getElementById('bgB');
         const briefCard = document.getElementById('briefCard');
@@ -182,19 +190,62 @@
         let currentIndex = 0;
         let copyrightlinkUrl = null;
         let front = bgA, back = bgB;
+        let isAnimating = false; // 修复 4：防抖标志
+
+        // 修复 3：获取今天日期字符串（用于缓存判断）
+        function getTodayStr() {
+            const d = new Date();
+            return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+        }
+
+        // 修复 3：从缓存读取图片数据
+        function getCachedImages() {
+            try {
+                const date = localStorage.getItem(CACHE_DATE_KEY);
+                if (date === getTodayStr()) {
+                    const raw = localStorage.getItem(CACHE_KEY);
+                    if (raw) return JSON.parse(raw);
+                }
+            } catch (e) { /* 忽略缓存读取错误 */ }
+            return null;
+        }
+
+        // 修复 3：保存图片数据到缓存
+        function setCachedImages(data) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+                localStorage.setItem(CACHE_DATE_KEY, getTodayStr());
+            } catch (e) { /* 忽略缓存写入错误 */ }
+        }
 
         function showBackground(url) {
             if (!url) return;
+            if (isAnimating) return; // 修复 4：动画进行中不重复触发
+            isAnimating = true;
+
             const img = new Image();
             img.onload = function() {
                 back.style.backgroundImage = `url("${url}")`;
                 back.classList.add('show');
                 front.classList.remove('show');
-                setTimeout(() => {
+                // 修复 4：监听 transitionend 事件来重置标志并交换 front/back
+                const onEnd = () => {
+                    back.removeEventListener('transitionend', onEnd);
                     let tmp = front;
                     front = back;
                     back = tmp;
-                }, 800);
+                    isAnimating = false;
+                };
+                back.addEventListener('transitionend', onEnd);
+                // 安全超时兜底，防止 transitionend 不触发
+                setTimeout(() => {
+                    if (isAnimating) {
+                        let tmp = front;
+                        front = back;
+                        back = tmp;
+                        isAnimating = false;
+                    }
+                }, 1000);
             };
             img.src = url;
         }
@@ -233,20 +284,48 @@
 
         async function fetchImages() {
             try {
+                // 修复 3：优先使用缓存
+                const cached = getCachedImages();
+                if (cached) {
+                    images = cached;
+                    if (images.length > 0) {
+                        showImage(0);
+                        return;
+                    }
+                }
+
                 const res = await fetch(API);
+                if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
                 const data = await res.json();
                 images = data.images;
+
+                // 修复 3：写入缓存
                 if (images && images.length > 0) {
+                    setCachedImages(images);
                     showImage(0);
                 }
             } catch (err) {
+                // 修复 7：更友好的错误提示
+                const msg = String(err);
                 briefCard.textContent = '加载失败';
                 titleEl.textContent = '错误';
-                metaEl.textContent = String(err);
+                if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('NetworkError')) {
+                    metaEl.textContent = '网络请求失败，CORS 代理可能不可用。请检查网络后刷新页面。';
+                } else {
+                    metaEl.textContent = '错误详情：' + msg;
+                }
             }
         }
 
         // 事件绑定
+        // 修复 6：brief-card 也添加点击跳转
+        briefCard.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (copyrightlinkUrl) {
+                window.open(copyrightlinkUrl, '_blank');
+            }
+        });
+
         detailCard.addEventListener('click', (e) => {
             e.stopPropagation();
             if (copyrightlinkUrl) {
@@ -262,6 +341,15 @@
         nextBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             showImage(currentIndex + 1);
+        });
+
+        // 修复 5：键盘导航
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'Left') {
+                showImage(currentIndex - 1);
+            } else if (e.key === 'ArrowRight' || e.key === 'Right') {
+                showImage(currentIndex + 1);
+            }
         });
 
         fetchImages();
