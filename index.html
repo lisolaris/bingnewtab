@@ -47,7 +47,7 @@
     <script>
         // 代理避免CORS失败
         const API = 'https://mutsumi.sorali.org/api/cors/https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=zh-CN';
-        const CACHE_KEY = 'bing_daily_wallpaper';
+        const CACHE_KEY = 'bing_daily_wallpaper_v2';
         const CACHE_DATE_KEY = 'bing_wallpaper_date';
 
         const bgA = document.getElementById('bgA');
@@ -139,7 +139,9 @@
             const title = img.title || extractShort(img.copyright);
             briefCard.textContent = extractShort(title);
             titleEl.textContent = title;
-            metaEl.textContent = img.copyright || '';
+            // 在左括号前插入换行，使版权归属另起一行
+            const copyright = img.copyright || '';
+            metaEl.innerHTML = copyright.replace(/\(/g, '<br>(');
             copyrightlinkUrl = img.copyrightlink;
         }
 
@@ -171,7 +173,8 @@
                 if (cached) {
                     images = cached;
                     if (images.length > 0) {
-                        showImage(0);
+                        // 默认展示最后一张（当日）
+                        showImage(images.length - 1);
                         return;
                     }
                 }
@@ -179,11 +182,13 @@
                 const res = await fetch(API);
                 if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
                 const data = await res.json();
-                images = data.images;
+                // 反转数组，使 images[0] 为最老、images[last] 为当日最新
+                images = data.images.reverse();
 
                 if (images && images.length > 0) {
                     setCachedImages(images);
-                    showImage(0);
+                    // 默认展示最后一张（当日）
+                    showImage(images.length - 1);
                 }
             } catch (err) {
                 const msg = String(err);
