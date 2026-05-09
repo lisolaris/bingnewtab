@@ -23,6 +23,22 @@
         </form>
     </div>
 
+    <!-- 左下角设置按钮 -->
+    <div class="settings-area" id="settingsArea">
+        <button class="settings-btn" id="settingsBtn" title="设置">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001.08 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1.08z"/>
+            </svg>
+        </button>
+        <div class="settings-popup card" id="settingsPopup">
+            <label class="settings-option">
+                <input type="checkbox" id="toggleSearch" checked>
+                <span>显示搜索栏</span>
+            </label>
+        </div>
+    </div>
+
     <div class="controls" id="controlsRegion">
         <div class="card-container">
             <div class="card brief-card" id="briefCard">加载中…</div>
@@ -217,6 +233,66 @@
                 }
             }
         }
+
+        // ========== 设置面板 ==========
+        const settingsArea = document.getElementById('settingsArea');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPopup = document.getElementById('settingsPopup');
+        const toggleSearch = document.getElementById('toggleSearch');
+        const searchWrapper = document.querySelector('.search-wrapper');
+        const SETTINGS_KEY = 'bing_settings';
+
+        // 读取已保存的设置
+        function loadSettings() {
+            try {
+                const raw = localStorage.getItem(SETTINGS_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) { /* ignore */ }
+            return { showSearch: true };
+        }
+
+        function saveSettings(s) {
+            try {
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+            } catch (e) { /* ignore */ }
+        }
+
+        // 初始化设置
+        const settings = loadSettings();
+        toggleSearch.checked = settings.showSearch !== false;
+        if (!toggleSearch.checked) {
+            searchWrapper.classList.add('hidden');
+        }
+
+        // 切换浮窗显示
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsArea.classList.toggle('open');
+        });
+
+        // 点击外部关闭浮窗
+        document.addEventListener('click', (e) => {
+            if (!settingsArea.contains(e.target)) {
+                settingsArea.classList.remove('open');
+            }
+        });
+
+        // 阻止浮窗内部点击冒泡到 document
+        settingsPopup.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // 搜索栏开关
+        toggleSearch.addEventListener('change', () => {
+            const show = toggleSearch.checked;
+            settings.showSearch = show;
+            saveSettings(settings);
+            if (show) {
+                searchWrapper.classList.remove('hidden');
+            } else {
+                searchWrapper.classList.add('hidden');
+            }
+        });
 
         // 事件绑定
         briefCard.addEventListener('click', (e) => {
