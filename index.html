@@ -141,8 +141,24 @@
             titleEl.textContent = title;
             // 在左括号前插入换行，使版权归属另起一行
             const copyright = img.copyright || '';
-            metaEl.innerHTML = copyright.replace(/\(/g, '<br>(');
-            copyrightlinkUrl = img.copyrightlink;
+            // 过滤掉"了解更多"及其后的链接文本
+            const cleaned = copyright.replace(/了解更多.*$/i, '').trim();
+            metaEl.innerHTML = cleaned.replace(/\(/g, '<br>(');
+            // 模拟 Bing 原版"了解更多"的 filters 参数，触发搜索页显示"必应上的今天"
+            if (img.copyrightlink) {
+                const u = new URL(img.copyrightlink);
+                u.searchParams.set('form', 'hpcapt');
+                // fullstartdate 格式如 "202605071600"，拼成 HpDate 所需的 "20260507_1600"
+                const fs = img.fullstartdate || '';
+                const hpDate = fs.length >= 12
+                    ? fs.slice(0, 8) + '_' + fs.slice(8)
+                    : fs;
+                const filters = 'HpDate:"' + hpDate + '" mgzv3configlist:"BingQA_Encyclopedia_Layout"';
+                u.searchParams.set('filters', filters);
+                copyrightlinkUrl = u.href;
+            } else {
+                copyrightlinkUrl = null;
+            }
         }
 
         // 更新导航按钮的禁用状态
