@@ -331,6 +331,21 @@
         });
 
         fetchImages();
+
+        // 注册 Service Worker 缓存 Bing 图片
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('worker.js').then((reg) => {
+                // 每日首次访问时清除旧图片缓存，防止无限增长
+                const IMG_CACHE_DATE_KEY = 'bing_sw_cache_date';
+                const today = getTodayStr();
+                try {
+                    if (localStorage.getItem(IMG_CACHE_DATE_KEY) !== today) {
+                        localStorage.setItem(IMG_CACHE_DATE_KEY, today);
+                        reg.active && reg.active.postMessage({ type: 'clear-image-cache' });
+                    }
+                } catch (e) { /* ignore */ }
+            }).catch(() => {});
+        }
     </script>
 </body>
 </html>
