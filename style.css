@@ -240,6 +240,10 @@ html, body {
     cursor: pointer;
 }
 
+.settings-option + .settings-option {
+    margin-top: 8px;
+}
+
 .settings-option input[type="checkbox"] {
     accent-color: #fff;
     width: 15px;

@@ -36,6 +36,10 @@
                 <input type="checkbox" id="toggleSearch" checked>
                 <span>显示搜索栏</span>
             </label>
+            <label class="settings-option">
+                <input type="checkbox" id="toggleTodayOnBing" checked>
+                <span>必应上的今天</span>
+            </label>
         </div>
     </div>
 
@@ -163,14 +167,16 @@
             // 模拟 Bing 原版"了解更多"的 filters 参数，触发搜索页显示"必应上的今天"
             if (img.copyrightlink) {
                 const u = new URL(img.copyrightlink);
-                u.searchParams.set('form', 'hpcapt');
-                // fullstartdate 格式如 "202605071600"，拼成 HpDate 所需的 "20260507_1600"
-                const fs = img.fullstartdate || '';
-                const hpDate = fs.length >= 12
-                    ? fs.slice(0, 8) + '_' + fs.slice(8)
-                    : fs;
-                const filters = 'HpDate:"' + hpDate + '" mgzv3configlist:"BingQA_Encyclopedia_Layout"';
-                u.searchParams.set('filters', filters);
+                if (settings.appendTodayOnBing !== false) {
+                    u.searchParams.set('form', 'hpcapt');
+                    // fullstartdate 格式如 "202605071600"，拼成 HpDate 所需的 "20260507_1600"
+                    const fs = img.fullstartdate || '';
+                    const hpDate = fs.length >= 12
+                        ? fs.slice(0, 8) + '_' + fs.slice(8)
+                        : fs;
+                    const filters = 'HpDate:"' + hpDate + '" mgzv3configlist:"BingQA_Encyclopedia_Layout"';
+                    u.searchParams.set('filters', filters);
+                }
                 copyrightlinkUrl = u.href;
             } else {
                 copyrightlinkUrl = null;
@@ -239,6 +245,7 @@
         const settingsBtn = document.getElementById('settingsBtn');
         const settingsPopup = document.getElementById('settingsPopup');
         const toggleSearch = document.getElementById('toggleSearch');
+        const toggleTodayOnBing = document.getElementById('toggleTodayOnBing');
         const searchWrapper = document.querySelector('.search-wrapper');
         const SETTINGS_KEY = 'bing_settings';
 
@@ -248,7 +255,7 @@
                 const raw = localStorage.getItem(SETTINGS_KEY);
                 if (raw) return JSON.parse(raw);
             } catch (e) { /* ignore */ }
-            return { showSearch: true };
+            return { showSearch: true, appendTodayOnBing: true };
         }
 
         function saveSettings(s) {
@@ -260,6 +267,7 @@
         // 初始化设置
         const settings = loadSettings();
         toggleSearch.checked = settings.showSearch !== false;
+        toggleTodayOnBing.checked = settings.appendTodayOnBing !== false;
         if (!toggleSearch.checked) {
             searchWrapper.classList.add('hidden');
         }
@@ -291,6 +299,16 @@
                 searchWrapper.classList.remove('hidden');
             } else {
                 searchWrapper.classList.add('hidden');
+            }
+        });
+
+        // "必应上的今天"参数开关
+        toggleTodayOnBing.addEventListener('change', () => {
+            settings.appendTodayOnBing = toggleTodayOnBing.checked;
+            saveSettings(settings);
+            // 重新构建 copyrightlinkUrl
+            if (images.length > 0) {
+                updateInfo(images[currentIndex]);
             }
         });
 
