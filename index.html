@@ -34,9 +34,13 @@
         <div class="settings-popup card" id="settingsPopup">
             <label class="settings-option">
                 <input type="checkbox" id="toggleSearch" checked>
-                <span>显示搜索栏</span>
+                <span>搜索栏</span>
             </label>
-            <label class="settings-option">
+            <label class="settings-option" title="在页面右下角显示说明卡片与前一天/后一天切换按钮">
+                <input type="checkbox" id="toggleControls" checked>
+                <span>说明卡片</span>
+            </label>
+            <label class="settings-option" title="点击说明卡片时进入『必应上的今天』特殊页面">
                 <input type="checkbox" id="toggleTodayOnBing" checked>
                 <span>必应上的今天</span>
             </label>
@@ -167,7 +171,7 @@
             // 模拟 Bing 原版"了解更多"的 filters 参数，触发搜索页显示"必应上的今天"
             if (img.copyrightlink) {
                 const u = new URL(img.copyrightlink);
-                if (settings.appendTodayOnBing !== false) {
+                if (settings.appendTodayOnBing !== false && settings.showControls !== false) {
                     u.searchParams.set('form', 'hpcapt');
                     // fullstartdate 格式如 "202605071600"，拼成 HpDate 所需的 "20260507_1600"
                     const fs = img.fullstartdate || '';
@@ -246,6 +250,7 @@
         const settingsPopup = document.getElementById('settingsPopup');
         const toggleSearch = document.getElementById('toggleSearch');
         const toggleTodayOnBing = document.getElementById('toggleTodayOnBing');
+        const toggleControls = document.getElementById('toggleControls');
         const searchWrapper = document.querySelector('.search-wrapper');
         const SETTINGS_KEY = 'bing_settings';
 
@@ -255,7 +260,7 @@
                 const raw = localStorage.getItem(SETTINGS_KEY);
                 if (raw) return JSON.parse(raw);
             } catch (e) { /* ignore */ }
-            return { showSearch: true, appendTodayOnBing: true };
+            return { showSearch: true, appendTodayOnBing: true, showControls: true };
         }
 
         function saveSettings(s) {
@@ -268,9 +273,26 @@
         const settings = loadSettings();
         toggleSearch.checked = settings.showSearch !== false;
         toggleTodayOnBing.checked = settings.appendTodayOnBing !== false;
+        toggleControls.checked = settings.showControls !== false;
         if (!toggleSearch.checked) {
             searchWrapper.classList.add('hidden');
         }
+        if (!toggleControls.checked) {
+            controlsRegion.classList.add('hidden');
+        }
+
+        // "必应上的今天"依赖"说明卡片"：卡片隐藏时不可操作
+        function updateTodayOnBingState() {
+            const label = toggleTodayOnBing.closest('.settings-option');
+            if (!toggleControls.checked) {
+                toggleTodayOnBing.disabled = true;
+                label.classList.add('disabled');
+            } else {
+                toggleTodayOnBing.disabled = false;
+                label.classList.remove('disabled');
+            }
+        }
+        updateTodayOnBingState();
 
         // 切换浮窗显示
         settingsBtn.addEventListener('click', (e) => {
@@ -307,6 +329,23 @@
             settings.appendTodayOnBing = toggleTodayOnBing.checked;
             saveSettings(settings);
             // 重新构建 copyrightlinkUrl
+            if (images.length > 0) {
+                updateInfo(images[currentIndex]);
+            }
+        });
+
+        // 说明卡片显隐开关
+        toggleControls.addEventListener('change', () => {
+            const show = toggleControls.checked;
+            settings.showControls = show;
+            saveSettings(settings);
+            if (show) {
+                controlsRegion.classList.remove('hidden');
+            } else {
+                controlsRegion.classList.add('hidden');
+            }
+            updateTodayOnBingState();
+            // 卡片隐藏后重新构建 URL（相当于关闭"必应上的今天"的效果）
             if (images.length > 0) {
                 updateInfo(images[currentIndex]);
             }
